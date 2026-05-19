@@ -180,9 +180,14 @@ class TestBasic(unittest.TestCase):
         df_fractional_seconds1 = df_fractional_seconds_raw.clone()
         df_fractional_seconds1 = df_fractional_seconds1.to_native()
         if backend == "pandas":
-            df_fractional_seconds1["date"] = pd.to_datetime(df_fractional_seconds1["date"])
+            if is_pandas_version_newer_than_2:
+                df_fractional_seconds1["date"] = pd.to_datetime(df_fractional_seconds1["date"])
+                df_fractional_seconds1["dtime"] = pd.to_datetime(df_fractional_seconds1["dtime"])
+            else:
+                df_fractional_seconds1["date"] = pd.Series(np.array(df_fractional_seconds1["date"], dtype="datetime64[D]"))
+                df_fractional_seconds1["dtime"] = pd.Series(np.array(df_fractional_seconds1["dtime"], dtype="datetime64[us]"))
+                df_fractional_seconds1["dtime"] = df_fractional_seconds1["dtime"].dt.to_pydatetime()
             df_fractional_seconds1["date"] = df_fractional_seconds1["date"].apply(lambda x: x.date())
-            df_fractional_seconds1["dtime"] = pd.to_datetime(df_fractional_seconds1["dtime"])
             df_fractional_seconds1["time"] = pd.to_datetime(df_fractional_seconds1["time"], format='%H:%M:%S.%f')
             df_fractional_seconds1["time"] = df_fractional_seconds1["time"].apply(lambda x: x.time())
         self.df_sas_fractional_seconds = df_fractional_seconds1
