@@ -16,6 +16,7 @@
 # #############################################################################
 
 from datetime import datetime, timedelta, date
+from concurrent.futures import ThreadPoolExecutor
 import unittest
 import os
 import sys
@@ -1378,6 +1379,33 @@ class TestBasic(unittest.TestCase):
                     
                     self.assertEqual(len(df.columns), len(self.df_pandas.columns))
                     self.assertEqual(len(df), len(self.df_pandas))
+
+    def test_read_sav_file_handle_threads(self):
+        """Test reading SAV file from file-like object in multiple threads at once (tests thread safety)"""
+        sav_file = os.path.join(self.basic_data_folder, "sample.sav")
+        with open(sav_file, "rb") as f:
+            file_bytes = f.read()
+
+        def read_sav_file(path):
+            with open(path, "rb") as fo:
+                df, meta = pyreadstat.read_sav(fo)
+            return df, meta
+
+        num_threads = 10
+
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            paths = [os.path.join(tmp_dir, f"sample{i}.sav") for i in range(num_threads)]
+            for path in paths:
+                with open(path, "wb") as f:
+                    f.write(file_bytes)
+
+            with ThreadPoolExecutor(max_workers=num_threads) as executor:
+                results = list(executor.map(read_sav_file, paths))
+
+        for df, meta in results:
+            self.assertEqual(len(df.columns), len(self.df_pandas.columns))
+            self.assertEqual(len(df), len(self.df_pandas))
+            self.assertListEqual(list(df.columns), list(self.df_pandas.columns))
 
     def test_read_sav_bytesio(self):
         """Test reading SAV file from BytesIO (simulates remote/streaming data)"""
